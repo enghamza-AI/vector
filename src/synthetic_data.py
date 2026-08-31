@@ -1,41 +1,3 @@
-"""
-RESPONSIBILITY OF THIS FILE
-    Generate a realistic, fully synthetic lead-engagement dataset — one
-    row per engagement EVENT (email open, click, website visit, form
-    fill, demo request), plus a firmographic row per lead — with a
-    hidden "true intent" per lead that drives both event frequency and
-    eventual conversion, never exposed as a feature.
-
-WHAT CONCEPT THIS FILE TEACHES
-    A THIRD variation of the same hidden-ground-truth simulation
-    pattern used in Pulse (hidden repurchase cadence) and Beacon (hidden
-    decay trajectory). Here the hidden variable is "true intent," and it
-    drives TWO separate observable outcomes — event frequency AND
-    conversion probability — which is closer to how real latent
-    variables usually work (one underlying cause, multiple downstream
-    effects) than either previous project's single-effect design.
-
-CONNECTS TO PULSE AND BEACON
-    Structurally closest to Pulse: event-level rows collapsed to one
-    row per entity (lead, here) via feature_engineering.py. The
-    conversion label is like Beacon's — genuinely observed within a
-    fixed window, not censored. The event-type MIX (not just count) is
-    new — a lead with 10 email opens and a lead with 2 demo requests
-    have very different intent despite similar raw event counts, which
-    is a distinction neither prior project needed to make.
-
-WHERE ELSE THIS PATTERN APPLIES
-    Marketing attribution, product-led-growth activation scoring, sales
-    pipeline prioritization — anywhere discrete user actions of
-    different "weight" need to be combined into one intent signal.
-
-WHEN NOT TO USE THIS PATTERN
-    Once real CRM/marketing-automation event data exists.
-
-PUBLIC API
-    generate_synthetic_leads(config: dict) -> dict
-        returns {"leads": DataFrame, "events": DataFrame}
-"""
 
 from __future__ import annotations
 
@@ -44,40 +6,7 @@ import pandas as pd
 
 
 def generate_synthetic_leads(config: dict) -> dict:
-    """
-    Generate synthetic lead firmographics and engagement events.
 
-    WHAT GOES IN / WHAT COMES OUT
-        in:  config["synthetic_data"] dict
-        out: dict with two DataFrames:
-             "leads": one row per lead — lead_id, created_date, source,
-                       budget_tier, company_size, converted (bool)
-             "events": one row per engagement event — lead_id, event_id,
-                        event_date, event_type
-             Example leads row: lead_id=1042, created_date=2025-01-14,
-             source="referral", budget_tier="mid", company_size=34,
-             converted=True
-             Example events row: lead_id=1042, event_id="evt_00004821",
-             event_date=2025-01-20, event_type="demo_request"
-
-    Parameters
-    ----------
-    config : dict
-        Full project config. Only config["synthetic_data"] is read.
-
-    Returns
-    -------
-    dict
-        {"leads": pandas.DataFrame, "events": pandas.DataFrame}
-
-    Example
-    -------
-    >>> from src.config_loader import load_config
-    >>> cfg = load_config()
-    >>> data = generate_synthetic_leads(cfg)
-    >>> sorted(data.keys())
-    ['events', 'leads']
-    """
     sd = config["synthetic_data"]
     rng = np.random.default_rng(sd["random_seed"])
 
@@ -99,10 +28,7 @@ def generate_synthetic_leads(config: dict) -> dict:
     event_counter = 0
 
     for lead_id in range(1, n_leads + 1):
-        # WHAT: each lead's hidden true intent — drives BOTH event
-        #       frequency and conversion probability
-        # WHY: this dual effect is the new concept this file teaches —
-        #      one latent cause, two observable downstream effects
+    
         true_intent = rng.lognormal(
             mean=sd["true_intent_lognormal_mean"],
             sigma=sd["true_intent_lognormal_sigma"],
@@ -122,9 +48,7 @@ def generate_synthetic_leads(config: dict) -> dict:
         created_date = sim_start_date + pd.Timedelta(days=int(created_offset))
         days_available = sim_days - created_offset
 
-        # WHAT: expected total events for this lead, scaled by intent
-        # WHY: a Poisson draw around this expectation gives a realistic,
-        #      variable event count per lead rather than a fixed number
+       
         expected_events = sd["baseline_total_events"] * true_intent
         n_events = rng.poisson(max(0.1, expected_events))
 
@@ -144,14 +68,7 @@ def generate_synthetic_leads(config: dict) -> dict:
                 }
             )
 
-        # WHAT: combine hidden intent, source quality, and budget
-        #       quality into a conversion probability via a logistic
-        #       function
-        # WHY: a logistic (sigmoid) function is the standard way to turn
-        #      an unbounded combined "score" into a valid 0-1
-        #      probability — the same function a real logistic
-        #      regression model would fit, used here to GENERATE the
-        #      ground truth the classifier later has to recover
+
         combined_score = (
             np.log(true_intent + 1e-6)
             + np.log(source_mults[source])
@@ -184,7 +101,7 @@ def generate_synthetic_leads(config: dict) -> dict:
 
 
 if __name__ == "__main__":
-    # Standalone smoke test — run with: python src/synthetic_data.py
+  
     from config_loader import load_config
 
     cfg = load_config()
